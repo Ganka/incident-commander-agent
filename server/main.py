@@ -317,7 +317,7 @@ async def notify_slack(
 # ── Entry point ──────────────────────────────────────────────────────────────
 def run():
     host = os.getenv("HOST") or ("0.0.0.0" if os.getenv("PORT") else os.getenv("MCP_SERVER_HOST", "0.0.0.0"))
-    port = int(os.getenv("PORT") or os.getenv("MCP_SERVER_PORT", "3002"))
+    port = int(os.getenv("PORT") or os.getenv("MCP_SERVER_PORT", "8080"))
     uvicorn.run("main:app", host=host, port=port, log_level="info")
 
 

@@ -44,6 +44,20 @@ logger = logging.getLogger(__name__)
 server = DynastraceMCPServer()
 chat_agent: Optional[ChatAgent] = None
 
+DEFAULT_CORS_ORIGINS = [
+    "https://incident-commander-app-production.up.railway.app",
+    "https://incident-commander-agent-production.up.railway.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+
+def _csv_env(name: str, defaults: list[str]) -> list[str]:
+    values = os.getenv(name)
+    if not values:
+        return defaults
+    return [value.strip().rstrip("/") for value in values.split(",") if value.strip()]
+
 
 # ── Lifespan (replaces deprecated @app.on_event) ────────────────────────────
 @asynccontextmanager
@@ -71,10 +85,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_csv_env("CORS_ORIGINS", DEFAULT_CORS_ORIGINS),
+    allow_origin_regex=os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.up\.railway\.app"),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -120,7 +136,26 @@ def _ensure_data_client() -> None:
 # ── Routes ───────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "model": chat_agent.model_name if chat_agent else None}
+    return {
+        "status": "ok",
+        "service": "incident-commander-agent",
+        "model": chat_agent.model_name if chat_agent else None,
+    }
+
+
+@app.get("/")
+async def root_health_check():
+    return await health_check()
+
+
+@app.get("/ready")
+async def readiness_check():
+    return {
+        "status": "ready",
+        "service": "incident-commander-agent",
+        "chatAgentAvailable": chat_agent is not None,
+        "mockDataEnabled": _use_mock_data(),
+    }
 
 
 @app.post("/tools/{tool_name}")
@@ -281,7 +316,7 @@ async def notify_slack(
 
 # ── Entry point ──────────────────────────────────────────────────────────────
 def run():
-    host = os.getenv("MCP_SERVER_HOST", "0.0.0.0")
+    host = os.getenv("HOST") or ("0.0.0.0" if os.getenv("PORT") else os.getenv("MCP_SERVER_HOST", "0.0.0.0"))
     port = int(os.getenv("PORT") or os.getenv("MCP_SERVER_PORT", "3002"))
     uvicorn.run("main:app", host=host, port=port, log_level="info")
 

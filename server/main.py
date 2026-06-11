@@ -45,8 +45,8 @@ server = DynastraceMCPServer()
 chat_agent: Optional[ChatAgent] = None
 
 DEFAULT_CORS_ORIGINS = [
-    "https://incident-commander-app-production.up.railway.app",
-    "https://incident-commander-agent-production.up.railway.app",
+    "https://incident-commander-app.vercel.app/",
+    "https://incident-commander-agent.onrender.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
